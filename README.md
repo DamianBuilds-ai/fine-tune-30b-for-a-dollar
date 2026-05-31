@@ -1,10 +1,42 @@
 # QLoRA Fine-Tune: 30B MoE on a Budget
 
+![Fine-tune a 30B model for $0.96](docs/assets/hero.svg)
+
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Base model](https://img.shields.io/badge/base-Qwen3--30B--A3B-6E40C9.svg)](https://huggingface.co/Qwen/Qwen3-30B-A3B-Instruct-2507)
+![Quantization](https://img.shields.io/badge/GGUF-Q4__K__M-orange.svg)
+![Cost](https://img.shields.io/badge/v2_cost-%240.96-2ea44f.svg)
+![Inference](https://img.shields.io/badge/CPU-~13_tok%2Fs-0a7ea4.svg)
+
 Fine-tuned a 30B Mixture-of-Experts model to behave like custom Telegram bots.
 Total cost: **$1.25** across two training runs. Deployed on CPU at **~13 tokens/second**.
 
 The v1 run cost **$0.29** and failed. The v2 run cost **$0.96** and shipped to production.
 This repo documents both - including the 9 attempts that broke before anything worked.
+
+---
+
+## Pipeline
+
+Left side is the only part that needs a GPU. Rent the A100, train for ~33 min, then pull the 52 MB adapter and destroy the instance. Billed time is ~58 min (instance startup + dependency install + training), which is where the $0.96 comes from. Everything from the merge onward runs on CPU.
+
+```mermaid
+flowchart LR
+    subgraph Training["Training  -  rent the GPU, then destroy it"]
+        A["Training Data<br/>JSONL - 500 multi-turn<br/>examples with tool calls"]
+        B["Vast.ai A100 80GB<br/>QLoRA - NF4 4-bit - r=16<br/>33m16s train - ~58 min billed - $0.96"]
+        C["LoRA Adapter<br/>52 MB safetensors"]
+        A --> B --> C
+    end
+    subgraph Deployment["Deployment  -  runs on CPU, no GPU needed"]
+        D["llama.cpp merge<br/>export-lora into base"]
+        E["GGUF Q4_K_M<br/>18 GB merged model"]
+        F["Ollama<br/>Modelfile - chat template<br/>tool renderer + parser"]
+        G["CPU Inference<br/>~13 tokens/sec"]
+        D --> E --> F --> G
+    end
+    C --> D
+```
 
 ---
 
