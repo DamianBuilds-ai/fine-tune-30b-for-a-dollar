@@ -1,0 +1,88 @@
+# LoRA Configuration - v2 (what worked, deployed in production)
+#
+# RECONSTRUCTED from training records. No .yaml config file was found on the
+# training machine - these parameters were embedded in the training script.
+# Values verified against training logs: 33m16s, $0.96, eval_loss=0.076.
+#
+# This is the configuration that produced a working fine-tune.
+# Use this as your starting point.
+#
+# Key improvements over v1:
+#   - r=16 (doubled) - more adapter capacity
+#   - All 7 target modules (vs 2 in v1) - the single biggest win
+#   - 500 multi-turn examples (vs 203 single-turn) - behavior over facts
+#   - 5 epochs (vs 3) - better convergence
+#   - Lower learning rate (1e-4 vs 2e-4) - more stable training
+#   - Longer context (1024 vs 512) - handles multi-turn conversations
+#
+# Result: 85% improvement in eval loss (0.509 -> 0.076)
+
+base_model: "Qwen/Qwen3-30B-A3B-Instruct-2507"
+model_type: "causal_lm"
+
+# Training data
+training_data: "train_v2.jsonl"   # 500 multi-turn examples with tool calls
+max_seq_length: 1024               # doubled from v1 for multi-turn context
+
+# LoRA parameters
+lora_r: 16                         # doubled from v1
+lora_alpha: 32                     # scaling factor (alpha/r = 2.0)
+lora_dropout: 0.05
+target_modules:
+  - q_proj                         # query projection
+  - k_proj                         # key projection (NEW vs v1)
+  - v_proj                         # value projection
+  - o_proj                         # output projection (NEW vs v1)
+  - gate_proj                      # MLP gate (NEW vs v1)
+  - up_proj                        # MLP up (NEW vs v1)
+  - down_proj                      # MLP down (NEW vs v1)
+# All 7 modules. This is what drove the 85% eval loss improvement.
+
+# Quantization
+load_in_4bit: true
+bnb_4bit_quant_type: "nf4"
+bnb_4bit_compute_dtype: "bfloat16"
+bnb_4bit_use_double_quant: true
+
+# Flash Attention 2 (optional - graceful fallback if not installed)
+# attn_implementation: "flash_attention_2"   # uncomment if flash-attn is installed
+# Install: pip install flash-attn --no-build-isolation
+
+# Training arguments
+num_epochs: 5                      # +2 vs v1 for better convergence
+batch_size: 1
+gradient_accumulation_steps: 4     # halved from v1 for more frequent updates
+learning_rate: 1.0e-4              # halved from v1 for stability
+optimizer: "paged_adamw_8bit"
+bf16: true
+fp16: false
+gradient_checkpointing: true
+warmup_steps: 10
+weight_decay: 0.01
+max_grad_norm: 0.3
+
+# Evaluation
+eval_steps: 50
+save_steps: 50
+save_total_limit: 2
+load_best_model_at_end: true
+metric_for_best_model: "eval_loss"
+early_stopping_patience: 5
+
+# Results (for reference)
+# training_loss_avg: 0.452
+# eval_loss: 0.076
+# training_time: "33m16s"
+# vram_peak_gb: 59.8
+# cost_usd: 0.96
+# adapter_size_mb: 52
+# merged_model_gb: 18
+# inference_speed_tps: 13
+# verdict: "DEPLOYED - personalities landing, tool calling works"
+#
+# Production observations:
+#   - Personality differentiation clear across bot types
+#   - Tool calls structured correctly (with RENDERER/PARSER in Modelfile)
+#   - Occasional currency locale issues (USD/EUR vs target locale) - add locale examples for v3
+#   - Markdown bleed (base model habit) - add format-compliance examples for v3
+#   - Thinking mode needs 500+ token budget (Qwen3 MoE behavior)

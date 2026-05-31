@@ -1,0 +1,93 @@
+# Ollama Modelfile - QLoRA Fine-Tune Template for Qwen3-30B-A3B
+#
+# Template for serving a QLoRA fine-tuned Qwen3-30B-A3B GGUF via Ollama.
+# The TEMPLATE block is Qwen3's official chat template (public, not personal data).
+# RENDERER and PARSER directives are CRITICAL for tool calling - see docs/deployment.md.
+#
+# USAGE:
+#   1. Replace /absolute/path/to/your-merged.gguf with your actual merged GGUF path
+#   2. ollama create my-finetuned-model -f Modelfile
+#   3. ollama run my-finetuned-model "Hello"
+#
+# VERIFY tool calling works after creation:
+#   ollama show my-finetuned-model --modelfile | grep -E 'RENDERER|PARSER'
+#   Both lines must appear.
+
+FROM /absolute/path/to/your-merged.gguf
+
+# RENDERER and PARSER are required for tool calling with Qwen3 fine-tunes.
+# Without these, tool calls appear as raw <tool_call> XML in the content field
+# instead of structured tool_calls objects. Use "qwen3.5" (not "qwen3" or "qwen3moe").
+RENDERER qwen3.5
+PARSER qwen3.5
+
+# Full Qwen3 chat template. DO NOT MODIFY.
+# Without this, the model generates garbage (does not parse role boundaries).
+# Source: ollama show qwen3:30b-a3b --modelfile | grep -A 100 'TEMPLATE'
+TEMPLATE """{{- $lastUserIdx := -1 -}}
+{{- range $idx, $msg := .Messages -}}
+{{- if eq $msg.Role "user" }}{{ $lastUserIdx = $idx }}{{ end -}}
+{{- end }}
+{{- if or .System .Tools }}<|im_start|>system
+{{ if .System }}{{ .System }}
+
+{{ end }}
+{{- if .Tools }}# Tools
+
+You may call one or more functions to assist with the user query.
+
+You are provided with function signatures within <tools></tools> XML tags:
+<tools>
+{{- range .Tools }}
+{"type": "function", "function": {{ .Function }}}
+{{- end }}
+</tools>
+
+For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
+<tool_call>
+{"name": <function-name>, "arguments": <args-json-object>}
+</tool_call>
+{{- end -}}
+<|im_end|>
+{{ end }}
+{{- range $i, $_ := .Messages }}
+{{- $last := eq (len (slice $.Messages $i)) 1 -}}
+{{- if eq .Role "user" }}<|im_start|>user
+{{ .Content }}<|im_end|>
+{{ else if eq .Role "assistant" }}<|im_start|>assistant
+{{ if (and $.IsThinkSet (and .Thinking (or $last (gt $i $lastUserIdx)))) -}}
+<think>{{ .Thinking }}</think>
+{{ end -}}
+{{ if .Content }}{{ .Content }}{{ end }}
+{{- if .ToolCalls }}
+{{- range .ToolCalls }}
+<tool_call>
+{"name": "{{ .Function.Name }}", "arguments": {{ .Function.Arguments }}}
+</tool_call>
+{{- end }}
+{{- end }}{{ if not $last }}<|im_end|>
+{{ end }}
+{{- else if eq .Role "tool" }}<|im_start|>user
+<tool_response>
+{{ .Content }}
+</tool_response><|im_end|>
+{{ end }}
+{{- if and (ne .Role "assistant") $last }}<|im_start|>assistant
+<think>
+{{ end }}
+{{- end }}"""
+
+# Stop tokens - Qwen3 turn boundary markers
+PARAMETER stop <|im_start|>
+PARAMETER stop <|im_end|>
+
+# Inference parameters
+PARAMETER repeat_penalty 1
+PARAMETER temperature 0.7
+PARAMETER top_k 20
+PARAMETER top_p 0.95
+
+# NOTE on num_predict: Qwen3 MoE uses a "thinking" mode that generates
+# internal reasoning tokens before the final response. Budget 500+ tokens
+# for complete responses. Default Ollama values (128) will cut off responses.
+# PARAMETER num_predict 1024

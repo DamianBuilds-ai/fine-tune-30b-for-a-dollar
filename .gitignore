@@ -1,0 +1,84 @@
+# Model artifacts - large binaries, never commit these
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+
+# LoRA adapter directories (contain safetensors)
+*-adapter/
+*-adapter-*/
+my-adapter/
+*-adapter*/
+merged-model/
+
+# GGUF output files
+*-merged.gguf
+*-base.gguf
+
+# HuggingFace cache
+.cache/
+huggingface/
+hub/
+
+# Training artifacts
+training-progress*.jsonl
+training.log
+training_log*.jsonl
+COMPLETE
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+pip-wheel-metadata/
+*.egg-info/
+dist/
+build/
+
+# Environment / secrets
+.env
+.env.*
+*.env
+secrets.yaml
+secrets.json
+
+# Vast.ai SSH keys (never commit)
+*.pem
+id_rsa
+id_ed25519
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# llama.cpp build output (large, rebuild locally)
+llama.cpp/build/
+llama.cpp/models/
+
+# Output directories that contain generated data
+data/my_train.jsonl
+data/train.jsonl
+
+# rclone config (contains R2 credentials)
+rclone.conf
+.config/rclone/

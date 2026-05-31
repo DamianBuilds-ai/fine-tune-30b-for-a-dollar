@@ -1,0 +1,67 @@
+# LoRA Configuration - v1 (what failed)
+#
+# RECONSTRUCTED from training records. No .yaml config file was found on the
+# training machine - these parameters were embedded in the training script.
+# Values verified against training logs: 7m29s, $0.29, eval_loss=0.509.
+#
+# This config is provided for reference only. It shows what NOT to do.
+# See lora_v2.yaml for the configuration that actually worked.
+#
+# Why v1 failed:
+#   - r=8 is too narrow for a 30B model to learn new patterns strongly
+#   - Only targeting 2 of 7 key modules (q_proj + v_proj)
+#   - 203 single-turn examples is insufficient at this rank
+#   - Training on system facts, not behavior/personality
+#
+# See docs/failures.md for the full analysis.
+
+base_model: "Qwen/Qwen3-30B-A3B-Instruct-2507"
+model_type: "causal_lm"
+
+# Training data
+training_data: "train_v1.jsonl"   # 203 single-turn Q&A examples
+max_seq_length: 512
+
+# LoRA parameters
+lora_r: 8                          # rank - too narrow for 30B
+lora_alpha: 16                     # scaling factor (alpha/r = 2.0)
+lora_dropout: 0.05
+target_modules:
+  - q_proj                         # query projection only
+  - v_proj                         # value projection only
+  # Missing: k_proj, o_proj, gate_proj, up_proj, down_proj
+
+# Quantization
+load_in_4bit: true
+bnb_4bit_quant_type: "nf4"
+bnb_4bit_compute_dtype: "bfloat16"
+bnb_4bit_use_double_quant: true
+
+# Training arguments
+num_epochs: 3
+batch_size: 1
+gradient_accumulation_steps: 8    # effective batch = 8
+learning_rate: 2.0e-4              # higher LR than v2
+optimizer: "paged_adamw_8bit"
+bf16: true
+fp16: false
+gradient_checkpointing: true
+warmup_steps: 10
+weight_decay: 0.01
+max_grad_norm: 0.3
+
+# Evaluation
+eval_steps: 50
+save_steps: 50
+save_total_limit: 2
+load_best_model_at_end: true
+metric_for_best_model: "eval_loss"
+
+# Results (for reference)
+# training_loss_start: 2.621
+# training_loss_end: 0.635
+# eval_loss: 0.509
+# training_time: "7m29s"
+# vram_peak_gb: 59.8
+# cost_usd: 0.29
+# verdict: "FAILED - knowledge did not imprint, personality weak"
