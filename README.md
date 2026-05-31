@@ -74,7 +74,7 @@ flowchart LR
 5. Load into Ollama with a proper Modelfile (chat template + RENDERER/PARSER for tool calling)
 6. Serve at 13 t/s on a CPU machine
 
-**Why it's cheap:** You only rent the GPU for the training run (~33 min). Then destroy it.
+**Why it's cheap:** You only rent the GPU for the training run (~33 min wall time, ~58 min billed). Then destroy it.
 The merged GGUF runs on CPU at 13 t/s - no GPU needed for inference.
 
 ---
