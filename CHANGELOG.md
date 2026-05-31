@@ -2,6 +2,12 @@
 
 Notable changes to this project. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-06-01
+
+### Changed
+- Tightened the SVG hero stat tiles so the rightmost figure (~13 tok/s) clears the right edge.
+- Rebuilt the Pipeline diagram as a single vertical flow, colour-coded by phase (green = the rented-GPU training stages, blue = the CPU deployment stages), so it renders larger and is easier to read on GitHub.
+
 ## 2026-05-31
 
 ### Added

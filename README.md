@@ -18,24 +18,21 @@ This repo documents both - including the 9 attempts that broke before anything w
 
 ## Pipeline
 
-Left side is the only part that needs a GPU. Rent the A100, train for ~33 min, then pull the 52 MB adapter and destroy the instance. Billed time is ~58 min (instance startup + dependency install + training), which is where the $0.96 comes from. Everything from the merge onward runs on CPU.
+The green stages run on the rented A100 GPU; everything from the llama.cpp merge down (blue) runs on CPU. Rent the A100, train for ~33 min, then pull the 52 MB adapter and destroy the instance. Billed time is ~58 min (instance startup + dependency install + training), which is where the $0.96 comes from.
 
 ```mermaid
-flowchart LR
-    subgraph Training["Training  -  rent the GPU, then destroy it"]
-        A["Training Data<br/>JSONL - 500 multi-turn<br/>examples with tool calls"]
-        B["Vast.ai A100 80GB<br/>QLoRA - NF4 4-bit - r=16<br/>33m16s train - ~58 min billed - $0.96"]
-        C["LoRA Adapter<br/>52 MB safetensors"]
-        A --> B --> C
-    end
-    subgraph Deployment["Deployment  -  runs on CPU, no GPU needed"]
-        D["llama.cpp merge<br/>export-lora into base"]
-        E["GGUF Q4_K_M<br/>18 GB merged model"]
-        F["Ollama<br/>Modelfile - chat template<br/>tool renderer + parser"]
-        G["CPU Inference<br/>~13 tokens/sec"]
-        D --> E --> F --> G
-    end
-    C --> D
+%%{init: {'theme':'base','themeVariables':{'fontSize':'18px','lineColor':'#64748b','primaryTextColor':'#e2e8f0','edgeLabelBackground':'#111a2e'}}}%%
+flowchart TB
+    A["Training Data<br/>JSONL - 500 multi-turn examples with tool calls"]:::train
+    B["Vast.ai A100 80GB - QLoRA<br/>NF4 4-bit - r=16<br/>33m16s train - ~58 min billed - $0.96"]:::train
+    C["LoRA Adapter - 52 MB safetensors"]:::train
+    D["llama.cpp merge - export-lora into base"]:::deploy
+    E["GGUF Q4_K_M - 18 GB merged model"]:::deploy
+    F["Ollama - Modelfile<br/>chat template + tool renderer / parser"]:::deploy
+    G["CPU Inference - ~13 tokens/sec"]:::deploy
+    A --> B --> C --> D --> E --> F --> G
+    classDef train fill:#10231c,stroke:#34d399,stroke-width:2px,color:#e2e8f0
+    classDef deploy fill:#0f2230,stroke:#22d3ee,stroke-width:2px,color:#e2e8f0
 ```
 
 ---
